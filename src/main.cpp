@@ -11,13 +11,13 @@ TFT_eSPI tft = TFT_eSPI(); // Instanțierea obiectului TFT_eSPI
 
 const char *ssid = "FBI5G";
 const char *password = "3.14159265";
-bool buttonStates[] = {false, false, false}; // Variabilă pentru a verifica dacă butonul a fost apăsat
+bool buttonStates_Incalzire[] = {false, false, false}; // Variabilă pentru a verifica dacă butonul a fost apăsat
+bool buttonStates_Umidificare[] = {false, false, false}; // Variabilă pentru a verifica dacă butonul a fost apăsat
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 7200, 60000); // GMT+2 pentru România
 
-void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera)
-{
+void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera){
     int margine = 1;
     char camera[10];
     // Desenează chenarul alb
@@ -41,24 +41,41 @@ void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera)
     tft.setCursor(pozX + 5, pozY + 40); // Poziționare text în interiorul dreptunghiului
     tft.print("Rh-set:");
 
-    /* int buttonX = pozX + 30;
-    int buttonY = pozY + latimel - 20;
-    int buttonW = 70;
-    int buttonH = 15;
-    if (buttonStates[nrCamera - 1])
-    {
-        tft.fillRect(pozX+60, buttonY, buttonW, buttonH, TFT_GREEN);
+    tft.setTextColor(TFT_YELLOW);
+    tft.setTextSize(1);
+    tft.setCursor(((pozX+5+65)-65/2)-27,pozY+latimel-29);
+    tft.print("Incalzire");
+
+    tft.setTextColor(TFT_YELLOW);
+    tft.setTextSize(1);
+    tft.setCursor(((pozX+5+65)-65/2)-27+68,pozY+latimel-29);
+    tft.print("Umidificare");
+
+    if (buttonStates_Incalzire[nrCamera - 1]){
+        tft.fillRect(pozX+5,pozY+latimel-20, 65, 15, TFT_GREEN);
         tft.setTextColor(TFT_WHITE);
-        tft.setCursor(buttonX + 35, buttonY + 3);
+        tft.setCursor(((pozX+5+65)-65/2)-10,pozY+latimel-16);
         tft.print("ON");
     }
-    else
-    {
-        tft.fillRect(pozX+60, buttonY, buttonW, buttonH, TFT_RED);
+    else{
+        tft.fillRect(pozX+5,pozY+latimel-20, 65, 15, TFT_RED);
         tft.setTextColor(TFT_WHITE);
-        tft.setCursor(buttonX + 35, buttonY + 3);
+        tft.setCursor(((pozX+5+65)-65/2)-10,pozY+latimel-16);
         tft.print("OFF");
-    } */
+    }
+
+    if (buttonStates_Umidificare[nrCamera - 1]){
+        tft.fillRect(pozX+79,pozY+latimel-20, 65, 15, TFT_GREEN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(((pozX+5+65)-65/2)-10+75,pozY+latimel-16);
+        tft.print("ON");
+    }
+    else{
+        tft.fillRect(pozX+79,pozY+latimel-20, 65, 15, TFT_RED);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(((pozX+5+65)-65/2)-10+75,pozY+latimel-16);
+        tft.print("OFF");
+    }
 }
 
 void print_data_and_time(){
@@ -66,9 +83,9 @@ void print_data_and_time(){
     time_t rawTime = timeClient.getEpochTime();
     struct tm *timeInfo = localtime(&rawTime);
     char formattedTime[10], formattedDate[12];
-    sprintf(formattedTime, "%02d:%02d", timeInfo->tm_hour+1, timeInfo->tm_min);
+    sprintf(formattedTime, "%02d:%02d", timeInfo->tm_hour + 1, timeInfo->tm_min);
     sprintf(formattedDate, "%02d/%02d/%04d", timeInfo->tm_mday, timeInfo->tm_mon + 1, timeInfo->tm_year + 1900);
-    tft.fillRect(147, 0, 60, 10, TFT_BLACK); // Curățare zona pentru data
+    tft.fillRect(147, 0, 60, 10, TFT_BLACK);  // Curățare zona pentru data
     tft.fillRect(156, 10, 35, 10, TFT_BLACK); // Curățare zona pentru ora
     tft.setTextColor(TFT_WHITE);
     tft.setCursor(147, 0);
@@ -77,8 +94,7 @@ void print_data_and_time(){
     tft.print(formattedTime);
 }
 
-void drawUI()
-{
+void drawUI(){
     tft.setRotation(3);
     tft.fillScreen(TFT_BLACK);
     tft.setTextSize(1);
@@ -106,8 +122,7 @@ void drawUI()
     drawDreptunghi(85, 145, 150, 85, 3);
 }
 
-void touch_calibrate()
-{
+void touch_calibrate(){
     uint16_t calData[5];
     uint8_t calDataOK = 0;
 
@@ -161,8 +176,7 @@ void touch_calibrate()
     }
 }
 
-void setup()
-{
+void setup(){
     Serial.begin(115200);
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED)
@@ -178,14 +192,7 @@ void setup()
     drawUI(); // desenare UI
 }
 
-void loop()
-{
-    /*
-    uint16_t t_x = 0, t_y = 0;
-    bool pressed = tft.getTouch(&t_x, &t_y);
-    if (pressed){
-    }
-    */
+void loop(){
     print_data_and_time();
     delay(1000);
 }
