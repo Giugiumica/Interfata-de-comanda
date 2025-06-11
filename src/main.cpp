@@ -16,6 +16,8 @@ int lastMinute = -1;
 int lastDay = -1;
 int lastMonth = -1;
 int lastYear = -1;
+unsigned long lastTouchTime = 0;
+const unsigned long debounceInterval = 300; //ms
 
 const char *ssid = "FBI5G";
 const char *password = "3.14159265";
@@ -24,6 +26,39 @@ bool buttonStates_Umidificare[] = {false, false, false};
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 7200, 60000);
+
+void draw_button_incalzire(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
+    if (buttonStates_Incalzire[nrCamera - 1]) {
+        tft.fillRect(pozX + 5, pozY + latimel - 20, 65, 15, TFT_GREEN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(pozX + 31, pozY + latimel - 16);
+        tft.print("ON");
+    } else {
+        tft.fillRect(pozX + 5, pozY + latimel - 20, 65, 15, TFT_RED);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(pozX + 29, pozY + latimel - 16);
+        tft.print("OFF");
+    }
+}
+
+void draw_button_umidificare(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
+    if (buttonStates_Umidificare[nrCamera - 1]) {
+        tft.fillRect(pozX + 79, pozY + latimel - 20, 65, 15, TFT_GREEN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(pozX + 105, pozY + latimel - 16);
+        tft.print("ON");
+    } else {
+        tft.fillRect(pozX + 79, pozY + latimel - 20, 65, 15, TFT_RED);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(pozX + 103, pozY + latimel - 16);
+        tft.print("OFF");
+    }
+}
+
+void draw_buttons(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
+    draw_button_incalzire(pozX, pozY, lungimeL, latimel, nrCamera);
+    draw_button_umidificare(pozX, pozY, lungimeL, latimel, nrCamera);
+}
 
 void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
     int margine = 1;
@@ -53,48 +88,28 @@ void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera)
 
     tft.setCursor(((pozX + 5 + 65) - 65 / 2) - 27 + 68, pozY + latimel - 29);
     tft.print("Umidificare");
-}
-
-void draw_button_incalzire(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
-    if (buttonStates_Incalzire[nrCamera - 1]) {
-        tft.fillRect(pozX + 5, pozY + latimel - 20, 65, 15, TFT_GREEN);
-        tft.setTextColor(TFT_WHITE);
-        tft.setCursor(pozX + 22, pozY + latimel - 16);
-        tft.print("ON");
-    } else {
-        tft.fillRect(pozX + 5, pozY + latimel - 20, 65, 15, TFT_RED);
-        tft.setTextColor(TFT_WHITE);
-        tft.setCursor(pozX + 22, pozY + latimel - 16);
-        tft.print("OFF");
-    }
-}
-
-void draw_button_umidificare(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
-    if (buttonStates_Umidificare[nrCamera - 1]) {
-        tft.fillRect(pozX + 79, pozY + latimel - 20, 65, 15, TFT_GREEN);
-        tft.setTextColor(TFT_WHITE);
-        tft.setCursor(pozX + 96, pozY + latimel - 16);
-        tft.print("ON");
-    } else {
-        tft.fillRect(pozX + 79, pozY + latimel - 20, 65, 15, TFT_RED);
-        tft.setTextColor(TFT_WHITE);
-        tft.setCursor(pozX + 96, pozY + latimel - 16);
-        tft.print("OFF");
-    }
-}
-
-void draw_buttons(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
-    draw_button_incalzire(pozX, pozY, lungimeL, latimel, nrCamera);
-    draw_button_umidificare(pozX, pozY, lungimeL, latimel, nrCamera);
+    draw_buttons(pozX, pozY, lungimeL, latimel, nrCamera);
 }
 
 void handleTouch(int x, int y) {
+    //pentru camera 1
     if (x >= 10 && x <= 75 && y >= 110 && y <= 130) {
         buttonStates_Incalzire[0] = !buttonStates_Incalzire[0];
         draw_button_incalzire(5, 45, 150, 85, 1);
     } else if (x >= 84 && x <= 149 && y >= 110 && y <= 130) {
         buttonStates_Umidificare[0] = !buttonStates_Umidificare[0];
         draw_button_umidificare(5, 45, 150, 85, 1);
+    }
+}
+
+void checkTouch() {
+    uint16_t x, y;
+    if (tft.getTouch(&x, &y)) {
+        unsigned long currentTime = millis();
+        if (currentTime - lastTouchTime > debounceInterval) {
+            handleTouch(x, y); // Apelează funcția ta logică
+            lastTouchTime = currentTime;
+        }
     }
 }
 
@@ -153,12 +168,9 @@ void drawUI() {
     tft.setCursor(275, 7);
     tft.print("Setari");
 
-    drawDreptunghi(5, 45, 150, 85, 1);
-    draw_buttons(5, 45, 150, 85, 1);
+    drawDreptunghi(5, 45, 150, 85, 1); 
     drawDreptunghi(165, 45, 150, 85, 2);
-    draw_buttons(165, 45, 150, 85, 2);
     drawDreptunghi(85, 145, 150, 85, 3);
-    draw_buttons(85, 145, 150, 85, 3);
 }
 
 void touch_calibrate() {
@@ -187,8 +199,9 @@ void touch_calibrate() {
     }
 
     if (!calDataOK || REPEAT_CAL) {
+        tft.setRotation(3); // 🔹 Setează orientarea pe orizontală
         tft.fillScreen(TFT_BLACK);
-        tft.setCursor(20, 0);
+        tft.setCursor(20, 10);
         tft.setTextFont(2);
         tft.setTextSize(1);
         tft.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -197,6 +210,7 @@ void touch_calibrate() {
         tft.setTextFont(1);
         tft.println();
 
+        // 🔹 Calibrare touchscreen în modul orizontal
         tft.calibrateTouch(calData, TFT_MAGENTA, TFT_BLACK, 15);
         tft.setTouch(calData);
 
@@ -224,14 +238,7 @@ void setup() {
 }
 
 void loop() {
-    uint16_t x, y;
-    if (tft.getTouch(x, y)) {
-        Serial.print("Touch detected at: ");
-        Serial.print(x);
-        Serial.print(", ");
-        Serial.println(y);
-        handleTouch(x, y);
-    }
     print_data_and_time();
+    checkTouch();
     delay(10);
 }
