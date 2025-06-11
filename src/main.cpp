@@ -1,3 +1,4 @@
+#include<Arduino.h>
 #include <WiFi.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
@@ -8,6 +9,11 @@ TFT_eSPI tft = TFT_eSPI(); // Instanțierea obiectului TFT_eSPI
 
 #define CALIBRATION_FILE "/TouchCalData1"
 #define REPEAT_CAL false
+
+int lastMinute = -1;
+int lastDay = -1;
+int lastMonth = -1;
+int lastYear = -1;
 
 const char *ssid = "FBI5G";
 const char *password = "3.14159265";
@@ -50,7 +56,9 @@ void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera)
     tft.setTextSize(1);
     tft.setCursor(((pozX+5+65)-65/2)-27+68,pozY+latimel-29);
     tft.print("Umidificare");
+}
 
+void draw_buttons(int pozX, int pozY, int lungimeL, int latimel, int nrCamera){
     if (buttonStates_Incalzire[nrCamera - 1]){
         tft.fillRect(pozX+5,pozY+latimel-20, 65, 15, TFT_GREEN);
         tft.setTextColor(TFT_WHITE);
@@ -78,20 +86,77 @@ void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera)
     }
 }
 
+void draw_button_incalzire(int pozX, int pozY, int lungimeL, int latimel, int nrCamera){
+    if (buttonStates_Incalzire[nrCamera - 1]){
+        tft.fillRect(pozX+5,pozY+latimel-20, 65, 15, TFT_GREEN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(((pozX+5+65)-65/2)-10,pozY+latimel-16);
+        tft.print("ON");
+    }
+    else{
+        tft.fillRect(pozX+5,pozY+latimel-20, 65, 15, TFT_RED);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(((pozX+5+65)-65/2)-10,pozY+latimel-16);
+        tft.print("OFF");
+    }
+}
+
+void draw_button_umidificare(int pozX, int pozY, int lungimeL, int latimel, int nrCamera){
+    if (buttonStates_Umidificare[nrCamera - 1]){
+        tft.fillRect(pozX+79,pozY+latimel-20, 65, 15, TFT_GREEN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(((pozX+5+65)-65/2)-10+75,pozY+latimel-16);
+        tft.print("ON");
+    }
+    else{
+        tft.fillRect(pozX+79,pozY+latimel-20, 65, 15, TFT_RED);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(((pozX+5+65)-65/2)-10+75,pozY+latimel-16);
+        tft.print("OFF");
+    }
+}
+
+void handleTouch(int x, int y){
+    // Verifică dacă coordonatele ating butonul de încălzire la camera 1
+    if (x >= 10 && x <= 75 && y >= 45 && y <= 55) {
+        buttonStates_Incalzire[0] = !buttonStates_Incalzire[0]; // Comută starea butonului
+        draw_button_incalzire(5, 45, 150, 85,1);               // Re-desenare dreptunghi cu noua stare
+    }else if (x>=84 && x<=110 && y>=45 && y<=55) {
+        buttonStates_Umidificare[0] = !buttonStates_Umidificare[0]; // Comută starea butonului
+        draw_button_umidificare(5, 45, 150, 85,1);               // Re-desenare dreptunghi cu noua stare
+    }
+}
+
 void print_data_and_time(){
     timeClient.update();
     time_t rawTime = timeClient.getEpochTime();
     struct tm *timeInfo = localtime(&rawTime);
+    int currentMinute = timeInfo->tm_min;
+    int currentHour = (timeInfo->tm_hour + 1) % 24; // Corectare fus orar
+    int currentDay = timeInfo->tm_mday+1;
+    int currentMonth = timeInfo->tm_mon + 1;
+    int currentYear = timeInfo->tm_year + 1900;
     char formattedTime[10], formattedDate[12];
-    sprintf(formattedTime, "%02d:%02d", timeInfo->tm_hour + 1, timeInfo->tm_min);
-    sprintf(formattedDate, "%02d/%02d/%04d", timeInfo->tm_mday, timeInfo->tm_mon + 1, timeInfo->tm_year + 1900);
-    tft.fillRect(147, 0, 60, 10, TFT_BLACK);  // Curățare zona pentru data
-    tft.fillRect(156, 10, 35, 10, TFT_BLACK); // Curățare zona pentru ora
-    tft.setTextColor(TFT_WHITE);
-    tft.setCursor(147, 0);
-    tft.print(formattedDate);
-    tft.setCursor(157, 10);
-    tft.print(formattedTime);
+
+    if (currentMinute != lastMinute) {
+        lastMinute = currentMinute;
+        sprintf(formattedTime, "%02d:%02d", currentHour, currentMinute);
+        tft.fillRect(157, 10, 35, 10, TFT_BLACK); // Șterge doar zona orei
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(157, 10);
+        tft.print(formattedTime);
+    }
+    // 🔹 Actualizează data doar dacă ziua/luna/anul s-a schimbat
+    if (currentDay != lastDay || currentMonth != lastMonth || currentYear != lastYear) {
+        lastDay = currentDay;
+        lastMonth = currentMonth;
+        lastYear = currentYear;
+        sprintf(formattedDate, "%02d/%02d/%04d", currentDay, currentMonth, currentYear);
+        tft.fillRect(147, 0, 60, 10, TFT_BLACK); // Șterge doar zona datei
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(147, 0);
+        tft.print(formattedDate);
+    }
 }
 
 void drawUI(){
@@ -118,8 +183,12 @@ void drawUI(){
     tft.print("Setari");
 
     drawDreptunghi(5, 45, 150, 85, 1);
+    draw_buttons(5, 45, 150, 85, 1);
     drawDreptunghi(165, 45, 150, 85, 2);
+    draw_buttons(165, 45, 150, 85, 2);
     drawDreptunghi(85, 145, 150, 85, 3);
+    draw_buttons(85, 145, 150, 85, 3);
+
 }
 
 void touch_calibrate(){
@@ -186,13 +255,18 @@ void setup(){
     }
     timeClient.begin();
     tft.init();
-    tft.setRotation(0);
-    //touch_calibrate();
-
     drawUI(); // desenare UI
 }
 
 void loop(){
+    uint16_t x, y;
+    if (tft.getTouch(&x, &y)) {
+        Serial.print("Touch detected at: ");
+        Serial.print(x);
+        Serial.print(", ");
+        Serial.println(y);
+        handleTouch(x, y); // gestionare atingere
+    }
     print_data_and_time();
-    delay(1000);
+    delay(10);
 }
