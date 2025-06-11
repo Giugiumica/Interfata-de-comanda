@@ -1,0 +1,82 @@
+#include <WiFi.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+#include <TFT_eSPI.h>
+
+const char* ssid     = "FBI5G";
+const char* password = "3.14159265";
+
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 7200, 60000); // GMT+2 pentru România
+
+TFT_eSPI tft = TFT_eSPI();
+
+
+void drawUI() {
+    tft.setTextColor(TFT_WHITE);
+    tft.setTextSize(1);
+
+    // 📍 Temperatură exterioară (temporar NaN)
+    tft.setCursor(0, 0);
+    tft.print("Temp-ext: NaN°C");
+    tft.setCursor(0, 10);
+    tft.print("Rh-ext: NaN°C");
+
+    // ⚙️ Iconiță de setări (dreapta sus)
+    tft.setCursor(280, 0);
+    tft.print("Setari");
+
+    // 🔹 Pătrat centrat cu text
+    int squareX = 5;
+    int squareY = 50;
+    int squareSize = 100;
+    int borderThickness = 1;
+
+    tft.fillRect(squareX - borderThickness, squareY - borderThickness, 
+                 squareSize + 2 * borderThickness, squareSize + 2 * borderThickness, TFT_WHITE);
+
+    tft.fillRect(squareX, squareY, squareSize, squareSize, TFT_BLUE);
+
+    tft.setTextColor(TFT_WHITE);
+    tft.setTextSize(1);
+    tft.setCursor(squareX + 15, squareY + 40);
+    tft.print("Camera 1");
+}
+
+void setup() {
+    Serial.begin(115200);
+    WiFi.begin(ssid, password);
+    
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    
+    Serial.println("\nWiFi conectat!");
+    timeClient.begin();
+
+    tft.init();
+    tft.setRotation(3);
+    tft.fillScreen(TFT_BLACK);
+
+    drawUI();
+}
+
+void loop() {
+    timeClient.update();
+    // 🔹 Obținerea datei corecte în format zz/ll/aaaa
+    time_t rawTime = timeClient.getEpochTime();
+    struct tm * timeInfo = localtime(&rawTime);
+    char formattedDate[20]; 
+    sprintf(formattedDate, "%02d:%02d-%02d/%02d/%04d", 
+            timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_mday,
+            timeInfo->tm_mon + 1, timeInfo->tm_year + 1900);
+    // 🔹 Actualizare UI - Data și ora
+    tft.fillRect(100, 5, 160, 20, TFT_BLACK);
+    tft.setCursor(110, 5);
+    tft.setTextColor(TFT_WHITE);
+    tft.setTextSize(1);
+    tft.print(formattedDate);
+
+    delay(1000); // Actualizare la fiecare secundă
+}
