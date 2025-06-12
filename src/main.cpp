@@ -8,8 +8,9 @@
 #include <SPIFFS.h>
 #include <EEPROM.h>
 
-
 TFT_eSPI tft = TFT_eSPI();
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 7200, 60000);
 
 #define CALIBRATION_FILE "/TouchCalData1"
 #define REPEAT_CAL false  // Pune pe true dacă vrei să recalculezi touchscreen-ul
@@ -19,38 +20,63 @@ TFT_eSPI tft = TFT_eSPI();
 #define RH_MAX 80 // Umiditatea maximă
 
 bool IN_SETTINGS_MENU=false; // Pune pe true dacă vrei să intri în meni
-
 int lastMinute = -1;
 int lastDay = -1;
 int lastMonth = -1;
 int lastYear = -1;
 unsigned long lastTouchTime = 0;
-const unsigned long debounceInterval = 300; //ms
-
+const unsigned long debounceInterval = 200; //ms
 const char *ssid = "FBI5G";
 const char *password = "3.14159265";
-
 bool buttonStates_Incalzire[] = {false, false, false};
 bool buttonStates_Umidificare[] = {false, false, false};
-
 float default_temp_set[] = {20.0, 20.0, 20.0}; // Temperatura setată pentru fiecare cameră
 int default_rh_set[] = {50, 50, 50}; // Umiditatea setată pentru fiecare cameră
 
-
-
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 7200, 60000);
-
 void saveSettingsToEEPROM() {
-    EEPROM.begin(12); // Alocăm spațiu (3 x temperaturi + 3 x umiditate)
+    EEPROM.begin(512); // Alocăm spațiu suficient
+    // 🔹 Salvează temperaturile și umiditatea
     for (int i = 0; i < 3; i++) {
-        EEPROM.put(i * 4, default_temp_set[i]); // Salvează temperaturile
-        EEPROM.put(12 + i * 4, default_rh_set[i]); // Salvează umiditatea
+        EEPROM.put(i * sizeof(float), default_temp_set[i]); // Salvăm temperaturile
+        EEPROM.put(12 + i * sizeof(int), default_rh_set[i]); // Salvăm umiditatea
     }
-    EEPROM.commit(); // Confirma modificările
+    EEPROM.commit(); // 🔹 Confirmă modificările (esențial!)
     Serial.println("Setările au fost salvate în EEPROM.");
 }
 
+void loadSettingsFromEEPROM() {
+    EEPROM.begin(512); // Alocăm spațiu suficient
+
+    for (int i = 0; i < 3; i++) {
+        EEPROM.get(i * 4, default_temp_set[i]);
+        EEPROM.get(12 + i * 4, default_rh_set[i]);
+
+        // 🔹 Verificăm dacă valoarea citită este validă (pentru evitarea coruperii datelor)
+        if (default_temp_set[i] < 10.0 || default_temp_set[i] > 35.0) {
+            default_temp_set[i] = 20.0; // Resetăm la valoarea default dacă este coruptă
+        }
+
+        if (default_rh_set[i] < 30 || default_rh_set[i] > 90) {
+            default_rh_set[i] = 50; // Resetăm umiditatea la default dacă este coruptă
+        }
+    }
+    EEPROM.end(); // 🔹 Evităm coruperea memoriei
+    Serial.println("Setările au fost încărcate corect din EEPROM.");
+}
+
+void reset_to_default_settings() {
+    for (int i = 0; i < 3; i++) {
+        default_temp_set[i] = 20.0; // Resetăm temperatura la 20.0
+        default_rh_set[i] = 50; // Resetăm umiditatea la 50%
+        buttonStates_Incalzire[i] = false; // Resetăm starea butonului de încălzire
+        buttonStates_Umidificare[i] = false; // Resetăm starea butonului de umidificare
+    }
+    IN_SETTINGS_MENU = false; // Ieșim din meniul de setări
+    saveSettingsToEEPROM(); // Salvăm setările implicite în EEPROM
+    Serial.println("Setările au fost resetate la valorile implicite.");
+    delay(500); // Așteptăm 1 secundă pentru a permite utilizatorului să vadă mesajul
+    ESP.restart(); // Repornește ESP pentru a aplica setările implicite
+}
 
 void draw_button_incalzire(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
     if (buttonStates_Incalzire[nrCamera - 1]) {
@@ -176,12 +202,22 @@ void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera)
     tft.setTextColor(TFT_WHITE);
     tft.print("Temp-act:");
     tft.setCursor(pozX + 5, pozY + 15);
-    tft.print("Rh-act:");
+    tft.print("Humi-act:");
     tft.setTextColor(TFT_MAGENTA);
     tft.setCursor(pozX + 5, pozY + 30);
     tft.print("Temp-set:");
     tft.setCursor(pozX + 5, pozY + 40);
-    tft.print("Rh-set:");
+    tft.print("Humi-set:");
+
+    // 🔹 Afișează temperatura setată
+    tft.setTextColor(TFT_YELLOW);
+    tft.setCursor(pozX + 70, pozY + 30);
+    tft.print(default_temp_set[nrCamera - 1], 1); // Afisează temperatura setată cu o zecimală
+
+    // 🔹 Afișează umiditatea setată
+    tft.setTextColor(TFT_YELLOW);
+    tft.setCursor(pozX + 70, pozY + 40);
+    tft.print(default_rh_set[nrCamera - 1]); // Afisează umiditatea setată fără zecimale
 
     tft.setTextColor(TFT_YELLOW);
     tft.setCursor(((pozX + 5 + 65) - 65 / 2) - 27, pozY + latimel - 29);
@@ -211,6 +247,15 @@ void draw_meniu_setari() {
     tft.setTextColor(TFT_YELLOW);
     tft.setCursor(5, 5);
     tft.print("Inapoi");
+
+    // 🔹 Buton de resetare la setari initiale
+    tft.fillRect(240, 200, 70, 30, TFT_WHITE);
+    tft.setTextColor(TFT_RED);
+    tft.setCursor(250, 205);
+    tft.print("Resetare");
+    tft.setCursor(255, 215);
+    tft.print("setari");
+
 
     // 🔹 Afișare temperaturi și umiditate pentru fiecare cameră + butoane de modificare
     for (int i = 0; i < 3; i++) {
@@ -313,10 +358,10 @@ void drawUI() {
 
     tft.setTextColor(TFT_GREEN);
     tft.setCursor(0, 0);
-    tft.print("Rh-ext:");
+    tft.print("Temp-ext:");
 
     tft.setCursor(0, 10);
-    tft.print("Temp-ext:");
+    tft.print("Humi-ext:");
 
     tft.setTextColor(TFT_WHITE);
     tft.setCursor(117, 0);
@@ -385,6 +430,40 @@ void handleTouch(int x, int y) {
             delay(1500);
             tft.fillRect(80, 165, 165, 15, TFT_DARKCYAN);
         }
+        // 🔹 Buton "Resetare setari" (dreapta jos)
+        else if (x >= 240 && x <= 310 && y >= 200 && y <= 230)
+        {
+            Serial.println("Ține apăsat pentru reset...");
+
+            unsigned long startTime = millis();
+
+            // 🔹 Așteptăm 5 secunde pentru apăsare lungă
+            while (millis() - startTime < 5000)
+            {
+                uint16_t xTemp, yTemp;
+                if (!tft.getTouch(&xTemp, &yTemp))
+                {
+                    Serial.println("Reset anulat.");
+                    tft.fillRect(240, 200, 70, 30, TFT_WHITE);
+                    tft.setTextColor(TFT_RED);
+                    tft.setCursor(250, 205);
+                    tft.print("Resetare");
+                    tft.setCursor(255, 215);
+                    tft.print("setari");
+                    return; // Ieșim dacă nu mai este apăsat
+                }else{
+                    tft.fillRect(240, 200, 70, 30, TFT_RED);
+                    tft.setTextColor(TFT_WHITE);
+                    tft.setCursor(250, 205);
+                    tft.print("Resetare");
+                    tft.setCursor(257, 215);
+                    tft.print("setari");
+                }
+            }
+            // 🔹 Resetăm toate setările și repornim ESP
+            reset_to_default_settings();
+        }
+
         for (int i = 0; i < 3; i++) {
             int yTemp = 35 + i * 45;
             int yRh = yTemp + 20;
@@ -437,7 +516,7 @@ void handleTouch(int x, int y) {
                 }
             }
     }
-}
+    }
 }
 
 void checkTouch() {
@@ -512,6 +591,7 @@ void setup() {
     timeClient.begin();
     tft.init();
     touch_calibrate();  // FOARTE IMPORTANT
+    loadSettingsFromEEPROM(); // Încarcă setările din EEPROM
     drawUI();
 }
 
