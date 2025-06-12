@@ -6,11 +6,18 @@
 #include <SPI.h>
 #include <FS.h>
 #include <SPIFFS.h>
+#include <EEPROM.h>
+
 
 TFT_eSPI tft = TFT_eSPI();
 
 #define CALIBRATION_FILE "/TouchCalData1"
 #define REPEAT_CAL false  // Pune pe true dacă vrei să recalculezi touchscreen-ul
+#define TEMP_MIN 10.0 // Temperatura minimă
+#define TEMP_MAX 80.0 // Temperatura maximă
+#define RH_MIN 30 // Umiditatea minimă
+#define RH_MAX 80 // Umiditatea maximă
+
 bool IN_SETTINGS_MENU=false; // Pune pe true dacă vrei să intri în meni
 
 int lastMinute = -1;
@@ -29,8 +36,21 @@ bool buttonStates_Umidificare[] = {false, false, false};
 float default_temp_set[] = {20.0, 20.0, 20.0}; // Temperatura setată pentru fiecare cameră
 int default_rh_set[] = {50, 50, 50}; // Umiditatea setată pentru fiecare cameră
 
+
+
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 7200, 60000);
+
+void saveSettingsToEEPROM() {
+    EEPROM.begin(12); // Alocăm spațiu (3 x temperaturi + 3 x umiditate)
+    for (int i = 0; i < 3; i++) {
+        EEPROM.put(i * 4, default_temp_set[i]); // Salvează temperaturile
+        EEPROM.put(12 + i * 4, default_rh_set[i]); // Salvează umiditatea
+    }
+    EEPROM.commit(); // Confirma modificările
+    Serial.println("Setările au fost salvate în EEPROM.");
+}
+
 
 void draw_button_incalzire(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
     if (buttonStates_Incalzire[nrCamera - 1]) {
@@ -63,6 +83,82 @@ void draw_button_umidificare(int pozX, int pozY, int lungimeL, int latimel, int 
 void draw_buttons(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
     draw_button_incalzire(pozX, pozY, lungimeL, latimel, nrCamera);
     draw_button_umidificare(pozX, pozY, lungimeL, latimel, nrCamera);
+}
+
+void draw_button_minus(int yOffset, int i, bool isTemp) {
+    if (isTemp) {
+        // 🔹 Buton "-" pentru rosu
+        tft.fillRect(200, yOffset - 5, 18, 18, TFT_RED);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(207, yOffset);
+        tft.print("-");
+        // 🔹 Afișează temperatura
+        tft.fillRect(222, yOffset - 5, 40, 20, TFT_DARKCYAN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(230, yOffset);
+        tft.print(default_temp_set[i], 1);
+        // 🔹 Buton "-" inapoi transparent
+        delay(200);
+        tft.fillRect(200, yOffset - 5, 18, 18, TFT_DARKCYAN);
+        tft.setTextColor(TFT_RED);
+        tft.setCursor(207, yOffset);
+        tft.print("-");
+    } else {
+        // 🔹 Buton "-" pentru rosu
+        tft.fillRect(200, yOffset +15, 18, 18, TFT_RED);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(207, yOffset+20);
+        tft.print("-");
+        // 🔹 Afișează umiditatea
+        tft.fillRect(222, yOffset +20, 40, 20, TFT_DARKCYAN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(230, yOffset+20);
+        tft.print(default_rh_set[i], 1);
+        // 🔹 Buton "-" inapoi transparent
+        delay(150);
+        tft.fillRect(200, yOffset +15, 18, 18, TFT_DARKCYAN);
+        tft.setTextColor(TFT_RED);
+        tft.setCursor(207, yOffset+20);
+        tft.print("-");
+    }
+}
+
+void draw_button_plus(int yOffset, int i, bool isTemp) {
+    if (isTemp) {
+        // 🔹 Buton "-" pentru rosu
+        tft.fillRect(265, yOffset - 5, 18, 18, TFT_GREEN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(272, yOffset);
+        tft.print("+");
+        // 🔹 Afișează temperatura
+        tft.fillRect(222, yOffset - 5, 40, 20, TFT_DARKCYAN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(230, yOffset);
+        tft.print(default_temp_set[i], 1);
+        // 🔹 Buton "-" inapoi transparent
+        delay(200);
+        tft.fillRect(265, yOffset - 5, 18, 18, TFT_DARKCYAN);
+        tft.setTextColor(TFT_GREEN);
+        tft.setCursor(272, yOffset);
+        tft.print("+");
+    } else {
+        // 🔹 Buton "+" pentru rosu
+        tft.fillRect(265, yOffset +15, 18, 18, TFT_GREEN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(272, yOffset+20);
+        tft.print("+");
+        // 🔹 Afișează umiditatea
+        tft.fillRect(222, yOffset +20, 40, 20, TFT_DARKCYAN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(230, yOffset+20);
+        tft.print(default_rh_set[i], 1);
+        // 🔹 Buton "+" inapoi transparent
+        delay(150);
+        tft.fillRect(265, yOffset +15, 18, 18, TFT_DARKCYAN);
+        tft.setTextColor(TFT_GREEN);
+        tft.setCursor(272, yOffset+20);
+        tft.print("+");
+    }
 }
 
 void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
@@ -154,19 +250,16 @@ void draw_meniu_setari() {
         tft.print(": ");
 
         // Buton "-"
-        //tft.fillRect(200, yOffset - 5, 18, 18, TFT_RED);
         tft.setTextColor(TFT_RED);
         tft.setCursor(207, yOffset);
         tft.print("-");
 
         // Valoare
-        //tft.fillRect(222, yOffset - 5, 40, 20, TFT_DARKCYAN);
         tft.setTextColor(TFT_WHITE);
         tft.setCursor(230, yOffset);
         tft.print(default_rh_set[i]);
 
         // Buton "+"
-        //tft.fillRect(265, yOffset - 5, 18, 18, TFT_GREEN);
         tft.setTextColor(TFT_GREEN);
         tft.setCursor(272, yOffset);
         tft.print("+");
@@ -284,6 +377,7 @@ void handleTouch(int x, int y) {
         }
         else if (x >= 272 && x <= 320 && y >= 0 && y <= 13){
             //Serial.println("Salvare setari...");
+            saveSettingsToEEPROM();
             tft.setCursor(80, 165);
             tft.setTextSize(1);
             tft.setTextColor(TFT_GREEN);
@@ -291,7 +385,59 @@ void handleTouch(int x, int y) {
             delay(1500);
             tft.fillRect(80, 165, 165, 15, TFT_DARKCYAN);
         }
+        for (int i = 0; i < 3; i++) {
+            int yTemp = 35 + i * 45;
+            int yRh = yTemp + 20;
+
+            // Temperatura –
+            if (x >= 207 && x <= 220 && y >= yTemp && y <= yTemp + 12) {
+                default_temp_set[i] -= 0.5;
+                if (default_temp_set[i] > TEMP_MIN && default_temp_set[i] < TEMP_MAX) {
+                    draw_button_minus(yTemp, i,true);
+                }
+                else {
+                    default_temp_set[i] = TEMP_MIN; // Asigură-te că nu scade sub minim
+                    draw_button_minus(yTemp, i,true);
+                }
+            }
+
+            // Temperatura +
+            if (x >= 272 && x <= 285 && y >= yTemp && y <= yTemp + 12) {
+                default_temp_set[i] += 0.5;
+                if (default_temp_set[i] > TEMP_MIN && default_temp_set[i] < TEMP_MAX) {
+                    draw_button_plus(yTemp, i,true);
+                }
+                else {
+                    default_temp_set[i] = TEMP_MAX; // Asigură-te că nu depășește maximul
+                    draw_button_plus(yTemp, i,true);
+                }
+            }
+
+            // Umiditate –
+            if (x >= 207 && x <= 220 && y >= yRh && y <= yRh + 12) {
+                default_rh_set[i] -= 1;
+                if (default_rh_set[i] >= RH_MIN && default_rh_set[i] <= RH_MAX) {
+                    draw_button_minus(yTemp, i,false);
+                }
+                else {
+                    default_rh_set[i] = RH_MIN; // Asigură-te că nu scade sub minim
+                    draw_button_minus(yTemp, i,false);
+                }
+            }
+
+            // Umiditate +
+            if (x >= 272 && x <= 285 && y >= yRh && y <= yRh + 12) {
+                default_rh_set[i] += 1;
+                if (default_rh_set[i] >= RH_MIN && default_rh_set[i] <= RH_MAX) {
+                    draw_button_plus(yTemp, i,false);
+                }
+                else {
+                    default_rh_set[i] = RH_MAX; // Asigură-te că nu depășește maximul
+                    draw_button_plus(yTemp, i,false);
+                }
+            }
     }
+}
 }
 
 void checkTouch() {
