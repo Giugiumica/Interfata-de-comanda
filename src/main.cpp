@@ -64,7 +64,17 @@ void loadSettingsFromEEPROM() {
     Serial.println("Setările au fost încărcate corect din EEPROM.");
 }
 
+void clearEEPROM() {
+    EEPROM.begin(512); // Alocăm spațiu suficient
+    for (int i = 0; i < 512; i++) {
+        EEPROM.write(i, 0xFF); // Rescriem fiecare locație cu valoarea default (0xFF)
+    }
+    EEPROM.commit(); // 🔹 Confirmăm ștergerea
+    Serial.println("EEPROM a fost curățat.");
+}
+
 void reset_to_default_settings() {
+    clearEEPROM(); // Curățăm EEPROM-ul
     for (int i = 0; i < 3; i++) {
         default_temp_set[i] = 20.0; // Resetăm temperatura la 20.0
         default_rh_set[i] = 50; // Resetăm umiditatea la 50%
@@ -72,8 +82,8 @@ void reset_to_default_settings() {
         buttonStates_Umidificare[i] = false; // Resetăm starea butonului de umidificare
     }
     IN_SETTINGS_MENU = false; // Ieșim din meniul de setări
-    saveSettingsToEEPROM(); // Salvăm setările implicite în EEPROM
     Serial.println("Setările au fost resetate la valorile implicite.");
+    saveSettingsToEEPROM(); // Salvăm setările implicite în EEPROM
     delay(500); // Așteptăm 1 secundă pentru a permite utilizatorului să vadă mesajul
     ESP.restart(); // Repornește ESP pentru a aplica setările implicite
 }
@@ -524,7 +534,7 @@ void checkTouch() {
     if (tft.getTouch(&x, &y)) {
         unsigned long currentTime = millis();
         if (currentTime - lastTouchTime > debounceInterval) {
-            handleTouch(x, y); // Apelează funcția ta logică
+            handleTouch(x, y);
             lastTouchTime = currentTime;
         }
     }
@@ -587,16 +597,16 @@ void setup() {
         delay(500);
         Serial.println("Connecting to WiFi...");
     }
-
     timeClient.begin();
     tft.init();
-    touch_calibrate();  // FOARTE IMPORTANT
-    loadSettingsFromEEPROM(); // Încarcă setările din EEPROM
+    touch_calibrate();
+    loadSettingsFromEEPROM();
     drawUI();
+    print_data_and_time();
 }
 
 void loop() {
-    print_data_and_time();
     checkTouch();
+    print_data_and_time();
     delay(10);
 }
