@@ -96,13 +96,13 @@ void draw_meniu_setari() {
     tft.setTextSize(2);
     tft.fillRect(0, 0, 320, 240, TFT_DARKCYAN);
     tft.setTextColor(TFT_RED);
-    tft.setCursor(100, 2);
+    tft.setCursor(125, 2);
     tft.print("Setari");
     tft.setCursor(272, 3);
     tft.setTextSize(1);
     tft.setTextColor(TFT_GREEN);
     tft.print("Salvare");
-    tft.setCursor(272, 13);
+    tft.setCursor(275, 13);
     tft.print("setari");
     tft.setTextColor(TFT_YELLOW);
     tft.setCursor(5, 5);
