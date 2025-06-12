@@ -118,7 +118,7 @@ void draw_meniu_setari() {
 
     // 🔹 Afișare temperaturi și umiditate pentru fiecare cameră + butoane de modificare
     for (int i = 0; i < 3; i++) {
-        int yOffset = 35 + i * 40; // Ajustare poziție verticală
+        int yOffset = 35 + i * 45; // Ajustare poziție verticală
 
         // 🔹 Temperatură
         tft.setTextColor(TFT_ORANGE);
@@ -284,12 +284,12 @@ void handleTouch(int x, int y) {
         }
         else if (x >= 272 && x <= 320 && y >= 0 && y <= 13){
             //Serial.println("Salvare setari...");
-            tft.setCursor(85, 155);
+            tft.setCursor(80, 165);
             tft.setTextSize(1);
             tft.setTextColor(TFT_GREEN);
             tft.print("! Setarile au fost salvate !");
             delay(1500);
-            tft.fillRect(85, 155, 165, 15, TFT_DARKCYAN);
+            tft.fillRect(80, 165, 165, 15, TFT_DARKCYAN);
         }
     }
 }
