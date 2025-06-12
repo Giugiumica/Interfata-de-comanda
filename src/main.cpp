@@ -11,6 +11,7 @@ TFT_eSPI tft = TFT_eSPI();
 
 #define CALIBRATION_FILE "/TouchCalData1"
 #define REPEAT_CAL false  // Pune pe true dacă vrei să recalculezi touchscreen-ul
+bool IN_SETTINGS_MENU=false; // Pune pe true dacă vrei să intri în meni
 
 int lastMinute = -1;
 int lastDay = -1;
@@ -91,26 +92,35 @@ void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera)
     draw_buttons(pozX, pozY, lungimeL, latimel, nrCamera);
 }
 
-void handleTouch(int x, int y) {
-    //pentru camera 1
-    if (x >= 10 && x <= 75 && y >= 110 && y <= 130) {
-        buttonStates_Incalzire[0] = !buttonStates_Incalzire[0];
-        draw_button_incalzire(5, 45, 150, 85, 1);
-    } else if (x >= 84 && x <= 149 && y >= 110 && y <= 130) {
-        buttonStates_Umidificare[0] = !buttonStates_Umidificare[0];
-        draw_button_umidificare(5, 45, 150, 85, 1);
-    }
-}
+void draw_meniu_setari() {
+    tft.setTextSize(2);
+    tft.fillRect(0, 0, 320, 240, TFT_DARKCYAN);
+    tft.setTextColor(TFT_RED);
+    tft.setCursor(100, 2);
+    tft.print("Setari");
+    tft.setCursor(272, 3);
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_GREEN);
+    tft.print("Salvare");
+    tft.setCursor(272, 13);
+    tft.print("setari");
+    tft.setTextColor(TFT_YELLOW);
+    tft.setCursor(5, 5);
+    tft.print("Inapoi");
 
-void checkTouch() {
-    uint16_t x, y;
-    if (tft.getTouch(&x, &y)) {
-        unsigned long currentTime = millis();
-        if (currentTime - lastTouchTime > debounceInterval) {
-            handleTouch(x, y); // Apelează funcția ta logică
-            lastTouchTime = currentTime;
-        }
-    }
+    tft.setTextColor(TFT_ORANGE);
+    tft.setCursor(5, 35);
+    tft.print("Temperatura Setata Camera 1: ");
+    tft.setCursor(5, 55);
+    tft.print("Umiditate Setata Camera 1: ");
+    tft.setCursor(5, 75);
+    tft.print("Temperatura Setata Camera 2: ");
+    tft.setCursor(5, 95);
+    tft.print("Umiditate Setata Camera 2: ");
+    tft.setCursor(5, 115);
+    tft.print("Temperatura Setata Camera 3: ");
+    tft.setCursor(5, 135);
+    tft.print("Umiditate Setata Camera 3: ");
 }
 
 void print_data_and_time() {
@@ -119,29 +129,30 @@ void print_data_and_time() {
     struct tm *timeInfo = localtime(&rawTime);
     int currentMinute = timeInfo->tm_min;
     int currentHour = (timeInfo->tm_hour + 1) % 24;
-    int currentDay = timeInfo->tm_mday + 1;
+    int currentDay = timeInfo->tm_mday;
     int currentMonth = timeInfo->tm_mon + 1;
     int currentYear = timeInfo->tm_year + 1900;
     char formattedTime[10], formattedDate[12];
 
-    if (currentMinute != lastMinute) {
-        lastMinute = currentMinute;
-        sprintf(formattedTime, "%02d:%02d", currentHour, currentMinute);
-        tft.fillRect(157, 10, 35, 10, TFT_BLACK);
-        tft.setTextColor(TFT_WHITE);
-        tft.setCursor(157, 10);
-        tft.print(formattedTime);
-    }
-
-    if (currentDay != lastDay || currentMonth != lastMonth || currentYear != lastYear) {
-        lastDay = currentDay;
-        lastMonth = currentMonth;
-        lastYear = currentYear;
-        sprintf(formattedDate, "%02d/%02d/%04d", currentDay, currentMonth, currentYear);
-        tft.fillRect(147, 0, 60, 10, TFT_BLACK);
-        tft.setTextColor(TFT_WHITE);
-        tft.setCursor(147, 0);
-        tft.print(formattedDate);
+    if (!IN_SETTINGS_MENU){
+        if (currentMinute != lastMinute){
+            lastMinute = currentMinute;
+            sprintf(formattedTime, "%02d:%02d", currentHour, currentMinute);
+            tft.fillRect(157, 10, 35, 10, TFT_BLACK);
+            tft.setTextColor(TFT_WHITE);
+            tft.setCursor(157, 10);
+            tft.print(formattedTime);
+        }
+        if (currentDay != lastDay || currentMonth != lastMonth || currentYear != lastYear){
+            lastDay = currentDay;
+            lastMonth = currentMonth;
+            lastYear = currentYear;
+            sprintf(formattedDate, "%02d/%02d/%04d", currentDay, currentMonth, currentYear);
+            tft.fillRect(147, 0, 60, 10, TFT_BLACK);
+            tft.setTextColor(TFT_WHITE);
+            tft.setCursor(147, 0);
+            tft.print(formattedDate);
+        }
     }
 }
 
@@ -171,6 +182,62 @@ void drawUI() {
     drawDreptunghi(5, 45, 150, 85, 1); 
     drawDreptunghi(165, 45, 150, 85, 2);
     drawDreptunghi(85, 145, 150, 85, 3);
+}
+
+void handleTouch(int x, int y) {
+    //pentru camera 1
+    if (x >= 10 && x <= 75 && y >= 110 && y <= 130) {
+        buttonStates_Incalzire[0] = !buttonStates_Incalzire[0];
+        draw_button_incalzire(5, 45, 150, 85, 1);
+    } else if (x >= 84 && x <= 149 && y >= 110 && y <= 130) {
+        buttonStates_Umidificare[0] = !buttonStates_Umidificare[0];
+        draw_button_umidificare(5, 45, 150, 85, 1);
+    }
+    //pentru camera 2
+    else if (x >=170  && x <=235  && y >= 110 && y <= 130) {
+        buttonStates_Incalzire[1] = !buttonStates_Incalzire[1];
+        draw_button_incalzire(165, 45, 150, 85, 2);
+    } else if (x >=244  && x <=309  && y >= 110 && y <= 130) {
+        buttonStates_Umidificare[1] = !buttonStates_Umidificare[1];
+        draw_button_umidificare(165, 45, 150, 85, 2);
+    }
+    //pentru camera 3
+    else if (x >=90 && x <=155  && y>=210  && y<=230 ) {
+        buttonStates_Incalzire[2] = !buttonStates_Incalzire[2];
+        draw_button_incalzire(85, 145, 150, 85, 3);
+    } else if (x >=164  && x <=229  && y>=210  && y<=230 ) {
+        buttonStates_Umidificare[2] = !buttonStates_Umidificare[2];
+        draw_button_umidificare(85, 145, 150, 85, 3);
+    }
+    //pentru meniul de setari
+    else if(x >= 270 && x <= 320 && y >= 10 && y <= 30) {
+        IN_SETTINGS_MENU = true;
+        draw_meniu_setari();
+    }
+    else if(x>= 270 && x <= 320 && y >= 0 && y <= 20) {
+        IN_SETTINGS_MENU=true;
+        draw_meniu_setari();
+    }
+    else if(IN_SETTINGS_MENU && (x>=5 && x<= 25 && y>=5 && y<=20)){
+        IN_SETTINGS_MENU=false;
+        lastMinute = -1;
+        lastDay = -1;
+        lastMonth = -1;
+        lastYear = -1;
+        drawUI();
+        print_data_and_time();
+    }
+}
+
+void checkTouch() {
+    uint16_t x, y;
+    if (tft.getTouch(&x, &y)) {
+        unsigned long currentTime = millis();
+        if (currentTime - lastTouchTime > debounceInterval) {
+            handleTouch(x, y); // Apelează funcția ta logică
+            lastTouchTime = currentTime;
+        }
+    }
 }
 
 void touch_calibrate() {
