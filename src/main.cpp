@@ -22,8 +22,12 @@ const unsigned long debounceInterval = 300; //ms
 
 const char *ssid = "FBI5G";
 const char *password = "3.14159265";
+
 bool buttonStates_Incalzire[] = {false, false, false};
 bool buttonStates_Umidificare[] = {false, false, false};
+
+float default_temp_set[] = {20.0, 20.0, 20.0}; // Temperatura setată pentru fiecare cameră
+int default_rh_set[] = {50, 50, 50}; // Umiditatea setată pentru fiecare cameră
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 7200, 60000);
@@ -156,6 +160,13 @@ void print_data_and_time() {
     }
 }
 
+void reset_date_and_time() {
+    lastMinute = -1;
+    lastDay = -1;
+    lastMonth = -1;
+    lastYear = -1;
+}
+
 void drawUI() {
     tft.setRotation(3);
     tft.fillScreen(TFT_BLACK);
@@ -185,47 +196,55 @@ void drawUI() {
 }
 
 void handleTouch(int x, int y) {
-    //pentru camera 1
-    if (x >= 10 && x <= 75 && y >= 110 && y <= 130) {
-        buttonStates_Incalzire[0] = !buttonStates_Incalzire[0];
-        draw_button_incalzire(5, 45, 150, 85, 1);
-    } else if (x >= 84 && x <= 149 && y >= 110 && y <= 130) {
-        buttonStates_Umidificare[0] = !buttonStates_Umidificare[0];
-        draw_button_umidificare(5, 45, 150, 85, 1);
-    }
-    //pentru camera 2
-    else if (x >=170  && x <=235  && y >= 110 && y <= 130) {
-        buttonStates_Incalzire[1] = !buttonStates_Incalzire[1];
-        draw_button_incalzire(165, 45, 150, 85, 2);
-    } else if (x >=244  && x <=309  && y >= 110 && y <= 130) {
-        buttonStates_Umidificare[1] = !buttonStates_Umidificare[1];
-        draw_button_umidificare(165, 45, 150, 85, 2);
-    }
-    //pentru camera 3
-    else if (x >=90 && x <=155  && y>=210  && y<=230 ) {
-        buttonStates_Incalzire[2] = !buttonStates_Incalzire[2];
-        draw_button_incalzire(85, 145, 150, 85, 3);
-    } else if (x >=164  && x <=229  && y>=210  && y<=230 ) {
-        buttonStates_Umidificare[2] = !buttonStates_Umidificare[2];
-        draw_button_umidificare(85, 145, 150, 85, 3);
-    }
-    //pentru meniul de setari
-    else if(x >= 270 && x <= 320 && y >= 10 && y <= 30) {
-        IN_SETTINGS_MENU = true;
-        draw_meniu_setari();
-    }
-    else if(x>= 270 && x <= 320 && y >= 0 && y <= 20) {
-        IN_SETTINGS_MENU=true;
-        draw_meniu_setari();
-    }
-    else if(IN_SETTINGS_MENU && (x>=5 && x<= 25 && y>=5 && y<=20)){
-        IN_SETTINGS_MENU=false;
-        lastMinute = -1;
-        lastDay = -1;
-        lastMonth = -1;
-        lastYear = -1;
-        drawUI();
-        print_data_and_time();
+    //pentru meniul principal
+    if (!IN_SETTINGS_MENU){
+        // pentru camera 1
+        if (x >= 10 && x <= 75 && y >= 110 && y <= 130){
+            buttonStates_Incalzire[0] = !buttonStates_Incalzire[0];
+            draw_button_incalzire(5, 45, 150, 85, 1);
+        }
+        else if (x >= 84 && x <= 149 && y >= 110 && y <= 130){
+            buttonStates_Umidificare[0] = !buttonStates_Umidificare[0];
+            draw_button_umidificare(5, 45, 150, 85, 1);
+        }
+        // pentru camera 2
+        else if (x >= 170 && x <= 235 && y >= 110 && y <= 130){
+            buttonStates_Incalzire[1] = !buttonStates_Incalzire[1];
+            draw_button_incalzire(165, 45, 150, 85, 2);
+        }
+        else if (x >= 244 && x <= 309 && y >= 110 && y <= 130){
+            buttonStates_Umidificare[1] = !buttonStates_Umidificare[1];
+            draw_button_umidificare(165, 45, 150, 85, 2);
+        }
+        // pentru camera 3
+        else if (x >= 90 && x <= 155 && y >= 210 && y <= 230){
+            buttonStates_Incalzire[2] = !buttonStates_Incalzire[2];
+            draw_button_incalzire(85, 145, 150, 85, 3);
+        }
+        else if (x >= 164 && x <= 229 && y >= 210 && y <= 230){
+            buttonStates_Umidificare[2] = !buttonStates_Umidificare[2];
+            draw_button_umidificare(85, 145, 150, 85, 3);
+        }
+        else if (x >= 270 && x <= 320 && y >= 0 && y <= 20){
+            IN_SETTINGS_MENU = true;
+            draw_meniu_setari();
+        }
+    }else{ //meniul de setări
+        if (x >= 5 && x <= 25 && y >= 5 && y <= 20) {
+            IN_SETTINGS_MENU = false;
+            reset_date_and_time();
+            drawUI();
+            print_data_and_time();
+        }
+        else if (x >= 270 && x <= 320 && y >= 0 && y <= 21){
+            //Serial.println("Salvare setari...");
+            tft.setCursor(85, 150);
+            tft.setTextSize(1);
+            tft.setTextColor(TFT_GREEN);
+            tft.print("! Setarile au fost salvate !");
+            delay(1500);
+            tft.fillRect(85, 150, 165, 15, TFT_DARKCYAN);
+        }
     }
 }
 
