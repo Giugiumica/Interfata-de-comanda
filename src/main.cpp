@@ -102,29 +102,75 @@ void draw_meniu_setari() {
     tft.setTextColor(TFT_RED);
     tft.setCursor(125, 2);
     tft.print("Setari");
+
+    // 🔹 Buton "Salvare setari"
+    tft.setTextColor(TFT_GREEN);
     tft.setCursor(272, 3);
     tft.setTextSize(1);
-    tft.setTextColor(TFT_GREEN);
     tft.print("Salvare");
     tft.setCursor(275, 13);
     tft.print("setari");
+
+    // 🔹 Buton "Inapoi"
     tft.setTextColor(TFT_YELLOW);
     tft.setCursor(5, 5);
     tft.print("Inapoi");
 
-    tft.setTextColor(TFT_ORANGE);
-    tft.setCursor(5, 35);
-    tft.print("Temperatura Setata Camera 1: ");
-    tft.setCursor(5, 55);
-    tft.print("Umiditate Setata Camera 1: ");
-    tft.setCursor(5, 75);
-    tft.print("Temperatura Setata Camera 2: ");
-    tft.setCursor(5, 95);
-    tft.print("Umiditate Setata Camera 2: ");
-    tft.setCursor(5, 115);
-    tft.print("Temperatura Setata Camera 3: ");
-    tft.setCursor(5, 135);
-    tft.print("Umiditate Setata Camera 3: ");
+    // 🔹 Afișare temperaturi și umiditate pentru fiecare cameră + butoane de modificare
+    for (int i = 0; i < 3; i++) {
+        int yOffset = 35 + i * 40; // Ajustare poziție verticală
+
+        // 🔹 Temperatură
+        tft.setTextColor(TFT_ORANGE);
+        tft.setCursor(5, yOffset);
+        tft.print("Temperatura setata Camera ");
+        tft.print(i + 1);
+        tft.print(": ");
+
+        // Buton "-"
+        //tft.fillRect(200, yOffset - 5, 18, 18, TFT_RED);
+        tft.setTextColor(TFT_RED);
+        tft.setCursor(207, yOffset);
+        tft.print("-");
+
+        // Valoare
+        //tft.fillRect(222, yOffset - 5, 40, 20, TFT_DARKCYAN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(230, yOffset);
+        tft.print(default_temp_set[i], 1);
+
+        // Buton "+"
+        //tft.fillRect(265, yOffset - 5, 18, 18, TFT_GREEN);
+        tft.setTextColor(TFT_GREEN);
+        tft.setCursor(272, yOffset);
+        tft.print("+");
+
+        // 🔹 Umiditate
+        yOffset += 20;
+        tft.setTextColor(TFT_ORANGE);
+        tft.setCursor(5, yOffset);
+        tft.print("Umiditate setata Camera ");
+        tft.print(i + 1);
+        tft.print(": ");
+
+        // Buton "-"
+        //tft.fillRect(200, yOffset - 5, 18, 18, TFT_RED);
+        tft.setTextColor(TFT_RED);
+        tft.setCursor(207, yOffset);
+        tft.print("-");
+
+        // Valoare
+        //tft.fillRect(222, yOffset - 5, 40, 20, TFT_DARKCYAN);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(230, yOffset);
+        tft.print(default_rh_set[i]);
+
+        // Buton "+"
+        //tft.fillRect(265, yOffset - 5, 18, 18, TFT_GREEN);
+        tft.setTextColor(TFT_GREEN);
+        tft.setCursor(272, yOffset);
+        tft.print("+");
+    }
 }
 
 void print_data_and_time() {
@@ -236,14 +282,14 @@ void handleTouch(int x, int y) {
             drawUI();
             print_data_and_time();
         }
-        else if (x >= 270 && x <= 320 && y >= 0 && y <= 21){
+        else if (x >= 272 && x <= 320 && y >= 0 && y <= 13){
             //Serial.println("Salvare setari...");
-            tft.setCursor(85, 150);
+            tft.setCursor(85, 155);
             tft.setTextSize(1);
             tft.setTextColor(TFT_GREEN);
             tft.print("! Setarile au fost salvate !");
             delay(1500);
-            tft.fillRect(85, 150, 165, 15, TFT_DARKCYAN);
+            tft.fillRect(85, 155, 165, 15, TFT_DARKCYAN);
         }
     }
 }
