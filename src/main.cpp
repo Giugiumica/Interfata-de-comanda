@@ -7,6 +7,15 @@
 #include <FS.h>
 #include <SPIFFS.h>
 #include <EEPROM.h>
+#include <esp_now.h>
+//MAC-ul acestui esp-D4:8A:FC:A4:89:90
+uint8_t receiverMac[] = {0x3C, 0x8A, 0x1F, 0xB9, 0xDC, 0xCC};//Adresa MAC a esp32 care controloeaza încălzirea și umidificarea
+
+typedef struct struct_message {
+    char text[32];
+} struct_message;
+
+struct_message mesaj;
 
 TFT_eSPI tft = TFT_eSPI();
 WiFiUDP ntpUDP;
@@ -32,6 +41,26 @@ bool buttonStates_Incalzire[] = {false, false, false};
 bool buttonStates_Umidificare[] = {false, false, false};
 float default_temp_set[] = {20.0, 20.0, 20.0}; // Temperatura setată pentru fiecare cameră
 int default_rh_set[] = {50, 50, 50}; // Umiditatea setată pentru fiecare cameră
+
+void dataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Mesaj trimis!" : "Eșec!");
+}
+
+void trimite_mesaj_la_regulator(const char *mesajText) {
+    strcpy(mesaj.text, mesajText); // 🔹 Copiem textul în structura ESP-NOW
+    esp_err_t result = esp_now_send(receiverMac, (uint8_t *)&mesaj, sizeof(mesaj));
+    if (result == ESP_OK) {
+        Serial.println("✅ Mesaj trimis cu succes!");
+    } else {
+        Serial.println("❌ Eroare la trimiterea mesajului!");
+    }
+}
+
+void dataReceived(const uint8_t *mac, const uint8_t *incomingData, int len) {
+    memcpy(&mesaj, incomingData, sizeof(mesaj));
+    Serial.print("ESP2 a trimis: ");
+    Serial.println(mesaj.text);
+}
 
 void saveSettingsToEEPROM() {
     EEPROM.begin(512); // Alocăm spațiu suficient
@@ -592,12 +621,37 @@ void touch_calibrate() {
 
 void setup() {
     Serial.begin(115200);
+
+    // 🔹 1️⃣ Conectare la Wi-Fi pentru update de timp
+    WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        Serial.println("Connecting to WiFi...");
+        Serial.print(".");
     }
-    timeClient.begin();
+    Serial.println("\nWi-Fi conectat!");
+    Serial.print("IP ESP: "); Serial.println(WiFi.localIP());
+
+    timeClient.begin(); // 🔹 Pornim sincronizarea NTP
+
+    // 🔹 2️⃣ Activare ESP-NOW după ce Wi-Fi este gata
+    if (esp_now_init() == ESP_OK) {
+        Serial.println("ESP-NOW activat!");
+        esp_now_register_send_cb(dataSent);
+        esp_now_register_recv_cb(dataReceived);
+
+        esp_now_peer_info_t peerInfo;
+        memcpy(peerInfo.peer_addr, receiverMac, 6);
+        peerInfo.channel = 0;
+        peerInfo.encrypt = false;
+        esp_now_add_peer(&peerInfo);
+    } else {
+        Serial.println("Eroare la inițializarea ESP-NOW!");
+    }
+
+    trimite_mesaj_la_regulator("ESP1 conectat la ESP2");
+
+
     tft.init();
     touch_calibrate();
     loadSettingsFromEEPROM();
