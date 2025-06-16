@@ -11,12 +11,6 @@
 //MAC-ul acestui esp-D4:8A:FC:A4:89:90
 uint8_t receiverMac[] = {0x3C, 0x8A, 0x1F, 0xB9, 0xDC, 0xCC};//Adresa MAC a esp32 care controloeaza încălzirea și umidificarea
 
-typedef struct struct_message {
-    char text[32];
-} struct_message;
-
-struct_message mesaj;
-
 TFT_eSPI tft = TFT_eSPI();
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 7200, 60000);
@@ -41,14 +35,15 @@ bool buttonStates_Incalzire[] = {false, false, false};
 bool buttonStates_Umidificare[] = {false, false, false};
 float default_temp_set[] = {20.0, 20.0, 20.0}; // Temperatura setată pentru fiecare cameră
 int default_rh_set[] = {50, 50, 50}; // Umiditatea setată pentru fiecare cameră
+ static char message_length[16];
 
-void dataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Mesaj trimis!" : "Eșec!");
+void decodare_date_primite() {
 }
 
-void trimite_mesaj_la_regulator(const char *mesajText) {
-    strcpy(mesaj.text, mesajText); // 🔹 Copiem textul în structura ESP-NOW
-    esp_err_t result = esp_now_send(receiverMac, (uint8_t *)&mesaj, sizeof(mesaj));
+void trimite_mesaj_la_regulator(uint8_t cameraNR) {
+    String mesaj = "cam" + String(cameraNR) + "-" + String(default_temp_set[cameraNR - 1],1) + "-" + String(default_rh_set[cameraNR - 1],0);
+    const char* mesaj_cstr = mesaj.c_str();
+    esp_err_t result = esp_now_send(receiverMac, (const uint8_t*)mesaj_cstr, strlen(mesaj_cstr));
     if (result == ESP_OK) {
         Serial.println("✅ Mesaj trimis cu succes!");
     } else {
