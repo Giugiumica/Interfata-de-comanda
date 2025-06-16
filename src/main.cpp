@@ -35,20 +35,15 @@ bool buttonStates_Incalzire[] = {false, false, false};
 bool buttonStates_Umidificare[] = {false, false, false};
 float default_temp_set[] = {20.0, 20.0, 20.0}; // Temperatura setată pentru fiecare cameră
 int default_rh_set[] = {50, 50, 50}; // Umiditatea setată pentru fiecare cameră
- static char message_length[16];
+char message_length[16];
 
-void decodare_date_primite() {
+void trimite_mesaj_la_regulator(uint8_t cameraNR){
+    int n = snprintf(message_length, sizeof(message_length),"cam%u-%.1f-%u",cameraNR,default_temp_set[cameraNR - 1],default_rh_set[cameraNR - 1]);
+    esp_err_t err = esp_now_send(receiverMac, reinterpret_cast<const uint8_t*>(message_length),n);
+    if (err != ESP_OK) Serial.printf("❌ Eroare ESP-NOW (%d)\n", err);
 }
 
-void trimite_mesaj_la_regulator(uint8_t cameraNR) {
-    String mesaj = "cam" + String(cameraNR) + "-" + String(default_temp_set[cameraNR - 1],1) + "-" + String(default_rh_set[cameraNR - 1],0);
-    const char* mesaj_cstr = mesaj.c_str();
-    esp_err_t result = esp_now_send(receiverMac, (const uint8_t*)mesaj_cstr, strlen(mesaj_cstr));
-    if (result == ESP_OK) {
-        Serial.println("✅ Mesaj trimis cu succes!");
-    } else {
-        Serial.println("❌ Eroare la trimiterea mesajului!");
-    }
+void decodare_date_primite() {
 }
 
 void saveSettingsToEEPROM() {
