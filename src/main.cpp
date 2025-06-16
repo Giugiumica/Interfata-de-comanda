@@ -56,12 +56,6 @@ void trimite_mesaj_la_regulator(const char *mesajText) {
     }
 }
 
-void dataReceived(const uint8_t *mac, const uint8_t *incomingData, int len) {
-    memcpy(&mesaj, incomingData, sizeof(mesaj));
-    Serial.print("ESP2 a trimis: ");
-    Serial.println(mesaj.text);
-}
-
 void saveSettingsToEEPROM() {
     EEPROM.begin(512); // Alocăm spațiu suficient
     // 🔹 Salvează temperaturile și umiditatea
@@ -117,7 +111,7 @@ void reset_to_default_settings() {
     ESP.restart(); // Repornește ESP pentru a aplica setările implicite
 }
 
-void draw_button_incalzire(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
+void draw_button_incalzire(uint16_t pozX, uint16_t pozY, uint16_t lungimeL, uint16_t latimel, uint8_t nrCamera) {
     if (buttonStates_Incalzire[nrCamera - 1]) {
         tft.fillRect(pozX + 5, pozY + latimel - 20, 65, 15, TFT_GREEN);
         tft.setTextColor(TFT_WHITE);
@@ -131,7 +125,7 @@ void draw_button_incalzire(int pozX, int pozY, int lungimeL, int latimel, int nr
     }
 }
 
-void draw_button_umidificare(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
+void draw_button_umidificare(uint16_t pozX, uint16_t pozY, uint16_t lungimeL, uint16_t latimel, uint8_t nrCamera) {
     if (buttonStates_Umidificare[nrCamera - 1]) {
         tft.fillRect(pozX + 79, pozY + latimel - 20, 65, 15, TFT_GREEN);
         tft.setTextColor(TFT_WHITE);
@@ -145,12 +139,12 @@ void draw_button_umidificare(int pozX, int pozY, int lungimeL, int latimel, int 
     }
 }
 
-void draw_buttons(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
+void draw_buttons(uint16_t pozX, uint16_t pozY, uint16_t lungimeL, u16_t latimel, uint8_t nrCamera) {
     draw_button_incalzire(pozX, pozY, lungimeL, latimel, nrCamera);
     draw_button_umidificare(pozX, pozY, lungimeL, latimel, nrCamera);
 }
 
-void draw_button_minus(int yOffset, int i, bool isTemp) {
+void draw_button_minus(uint16_t yOffset, uint8_t i, bool isTemp) {
     if (isTemp) {
         // 🔹 Buton "-" pentru rosu
         tft.fillRect(200, yOffset - 5, 18, 18, TFT_RED);
@@ -188,7 +182,7 @@ void draw_button_minus(int yOffset, int i, bool isTemp) {
     }
 }
 
-void draw_button_plus(int yOffset, int i, bool isTemp) {
+void draw_button_plus(uint16_t yOffset, uint8_t i, bool isTemp) {
     if (isTemp) {
         // 🔹 Buton "-" pentru rosu
         tft.fillRect(265, yOffset - 5, 18, 18, TFT_GREEN);
@@ -226,7 +220,7 @@ void draw_button_plus(int yOffset, int i, bool isTemp) {
     }
 }
 
-void drawDreptunghi(int pozX, int pozY, int lungimeL, int latimel, int nrCamera) {
+void drawDreptunghi(uint8_t pozX, uint8_t pozY, uint8_t lungimeL, uint8_t latimel, uint8_t nrCamera) {
     int margine = 1;
     char camera[10];
     tft.fillRect(pozX - margine, pozY - margine, lungimeL + 2 * margine, latimel + 2 * margine, TFT_BROWN);
@@ -390,6 +384,46 @@ void reset_date_and_time() {
     lastYear = -1;
 }
 
+void print_temperature_and_humidity(uint8_t camera,float temp,uint8_t umiditate) {
+    char tempStr[10], umidStr[10];
+    sprintf(tempStr, "%.1f", temp);
+    sprintf(umidStr, "%d", umiditate);
+    if (camera == 1) {
+        tft.fillRect(80, 5, 50, 10, TFT_BLACK);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(80, 5);
+        tft.print(tempStr);
+        tft.fillRect(80, 15, 50, 10, TFT_BLACK);
+        tft.setCursor(80, 15);
+        tft.print(umidStr);
+    } else if (camera == 2) {
+        tft.fillRect(240, 5, 50, 10, TFT_BLACK);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(240, 5);
+        tft.print(tempStr);
+        tft.fillRect(240, 15, 50, 10, TFT_BLACK);
+        tft.setCursor(240, 15);
+        tft.print(umidStr);
+    } else if (camera == 3) {
+        tft.fillRect(160, 105, 50, 10, TFT_BLACK);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(160, 105);
+        tft.print(tempStr);
+        tft.fillRect(160, 115, 50, 10, TFT_BLACK);
+        tft.setCursor(160, 115);
+        tft.print(umidStr);
+    }
+    else if (camera==0){
+        tft.fillRect(80, 5, 50, 10, TFT_BLACK);
+        tft.setTextColor(TFT_WHITE);
+        tft.setCursor(80, 5);
+        tft.print(tempStr);
+        tft.fillRect(80, 15, 50, 10, TFT_BLACK);
+        tft.setCursor(80, 15);
+        tft.print(umidStr);
+    }  
+}
+
 void drawUI() {
     tft.setRotation(3);
     tft.fillScreen(TFT_BLACK);
@@ -418,7 +452,7 @@ void drawUI() {
     drawDreptunghi(85, 145, 150, 85, 3);
 }
 
-void handleTouch(int x, int y) {
+void handleTouch(uint16_t x, uint16_t y) {
     //pentru meniul principal
     if (!IN_SETTINGS_MENU){
         // pentru camera 1
@@ -621,37 +655,15 @@ void touch_calibrate() {
 
 void setup() {
     Serial.begin(115200);
-
     // 🔹 1️⃣ Conectare la Wi-Fi pentru update de timp
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        Serial.print(".");
     }
     Serial.println("\nWi-Fi conectat!");
-    Serial.print("IP ESP: "); Serial.println(WiFi.localIP());
 
     timeClient.begin(); // 🔹 Pornim sincronizarea NTP
-
-    // 🔹 2️⃣ Activare ESP-NOW după ce Wi-Fi este gata
-    if (esp_now_init() == ESP_OK) {
-        Serial.println("ESP-NOW activat!");
-        esp_now_register_send_cb(dataSent);
-        esp_now_register_recv_cb(dataReceived);
-
-        esp_now_peer_info_t peerInfo;
-        memcpy(peerInfo.peer_addr, receiverMac, 6);
-        peerInfo.channel = 0;
-        peerInfo.encrypt = false;
-        esp_now_add_peer(&peerInfo);
-    } else {
-        Serial.println("Eroare la inițializarea ESP-NOW!");
-    }
-
-    trimite_mesaj_la_regulator("ESP1 conectat la ESP2");
-
-
     tft.init();
     touch_calibrate();
     loadSettingsFromEEPROM();
