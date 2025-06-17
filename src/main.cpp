@@ -8,8 +8,9 @@
 #include <SPIFFS.h>
 #include <EEPROM.h>
 #include <esp_now.h>
-//MAC-ul acestui esp-D4:8A:FC:A4:89:90
-uint8_t receiverMac[] = {0x3C, 0x8A, 0x1F, 0xB9, 0xDC, 0xCC};//Adresa MAC a esp32 care controloeaza încălzirea și umidificarea
+//MAC-ul acestui esp D4:8A:FC:A4:89:90
+//MAC-ul esp-ului pentru regulation 14:33:5C:02:88:20
+uint8_t receiverMac[] = {0x14, 0x33, 0x5c, 0x02, 0x88, 0x20};//Adresa MAC a esp32 care controloeaza încălzirea și umidificarea
 
 TFT_eSPI tft = TFT_eSPI();
 WiFiUDP ntpUDP;
