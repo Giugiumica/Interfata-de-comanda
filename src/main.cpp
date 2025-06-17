@@ -8,6 +8,7 @@
 #include <SPIFFS.h>
 #include <EEPROM.h>
 #include <esp_now.h>
+
 //MAC-ul acestui esp D4:8A:FC:A4:89:90
 //MAC-ul esp-ului pentru regulation 14:33:5C:02:88:20
 uint8_t receiverMac[] = {0x14, 0x33, 0x5c, 0x02, 0x88, 0x20};//Adresa MAC a esp32 care controloeaza încălzirea și umidificarea
@@ -34,6 +35,7 @@ const char *ssid = "FBI5G";
 const char *password = "3.14159265";
 bool buttonStates_Incalzire[] = {false, false, false};
 bool buttonStates_Umidificare[] = {false, false, false};
+
 float default_temp_set[] = {20.0, 20.0, 20.0}; // Temperatura setată pentru fiecare cameră
 int default_rh_set[] = {50, 50, 50}; // Umiditatea setată pentru fiecare cameră
 char message_length[16];
