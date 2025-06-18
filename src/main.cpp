@@ -8,7 +8,6 @@
 #include <SPIFFS.h>
 #include <EEPROM.h>
 #include <esp_now.h>
-
 //MAC-ul acestui esp D4:8A:FC:A4:89:90
 //MAC-ul esp-ului pentru regulation 14:33:5C:02:88:20
 uint8_t receiverMac[] = {0x14, 0x33, 0x5c, 0x02, 0x88, 0x20};//Adresa MAC a esp32 care controloeaza încălzirea și umidificarea
@@ -38,17 +37,91 @@ bool buttonStates_Umidificare[] = {false, false, false};
 
 float default_temp_set[] = {20.0, 20.0, 20.0}; // Temperatura setată pentru fiecare cameră
 int default_rh_set[] = {50, 50, 50}; // Umiditatea setată pentru fiecare cameră
-char message_length[16];
 
+char message_length[20];
+char ultimul_mesaj[20] = "";
+bool mesaj_nou = false;
+
+struct CameraReadout {
+  float temperatura;
+  uint8_t umiditate;
+};
+CameraReadout camere_actuale[4]; // index 0 = cam1, etc.
+
+//functii de temperatura
 void trimite_mesaj_la_regulator(uint8_t cameraNR){
-    int n = snprintf(message_length, sizeof(message_length),"cam%u-%.1f-%u",cameraNR,default_temp_set[cameraNR - 1],default_rh_set[cameraNR - 1]);
+    int n = snprintf(message_length, sizeof(message_length),"cam%u-%d-%d-%.1f-%u",cameraNR,buttonStates_Incalzire[cameraNR],buttonStates_Umidificare[cameraNR],default_temp_set[cameraNR],default_rh_set[cameraNR]);
     esp_err_t err = esp_now_send(receiverMac, reinterpret_cast<const uint8_t*>(message_length),n);
     if (err != ESP_OK) Serial.printf("❌ Eroare ESP-NOW (%d)\n", err);
 }
 
 void decodare_date_primite() {
+    uint8_t cam = 0;
+    float temp = 0.0;
+    uint8_t rh = 0;
+    sscanf(ultimul_mesaj, "cam%hhu-%f-%hhu", &cam, &temp, &rh);
+    camere_actuale[cam-1].temperatura = temp;
+    camere_actuale[cam-1].umiditate = rh;
 }
 
+void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
+  memset(ultimul_mesaj, 0, sizeof(ultimul_mesaj));
+  memcpy(ultimul_mesaj, incomingData, std::min((size_t)len, sizeof(ultimul_mesaj) - 1));
+  mesaj_nou = true;
+  // Poți decoda direct aici dacă vrei:
+}
+
+void print_temp_and_humidity() {
+    //camera 0- inseamna defapt camera 1
+    if(!IN_SETTINGS_MENU){
+        tft.setTextSize(1);
+        tft.setTextColor(TFT_WHITE);
+        //aici se afiseaza temperatura si umiditate pentru exterior
+        tft.fillRect(55,0,35,8, TFT_BLACK);
+        tft.setCursor(55, 0);
+        tft.printf("%.1f",camere_actuale[3].temperatura);
+        tft.fillCircle(81, 1, 1, TFT_WHITE);
+        tft.print(" C");
+
+        tft.fillRect(55,10,20,8, TFT_BLACK);
+        tft.setCursor(55, 10);
+        tft.printf("%u%%",camere_actuale[3].umiditate);
+
+        //Aici se afiseaza temperatura si umiditate pentru camera 1
+        tft.fillRect(65,50,35,8, TFT_DARKGREY);
+        tft.setCursor(65, 50);
+        tft.printf("%.1f",camere_actuale[0].temperatura);
+        tft.fillCircle(91, 51, 1, TFT_WHITE);
+        tft.print(" C");
+
+        tft.fillRect(65,60,20,8, TFT_DARKGREY);
+        tft.setCursor(65, 60);
+        tft.printf("%u%%",camere_actuale[0].umiditate);
+
+        //Aici se afiseaza temperatura si umiditate pentru camera 2
+        tft.fillRect(225,50,35,8, TFT_DARKGREY);
+        tft.setCursor(225, 50);
+        tft.printf("%.1f",camere_actuale[1].temperatura);
+        tft.fillCircle(251, 51, 1, TFT_WHITE);
+        tft.print(" C");
+
+        tft.fillRect(225,60,20,8, TFT_DARKGREY);
+        tft.setCursor(225, 60);
+        tft.printf("%u%%",camere_actuale[1].umiditate);
+
+        //Aici se afiseaza temperatura si umiditate pentru camera 2
+        tft.fillRect(145,150,35,8, TFT_DARKGREY);
+        tft.setCursor(145, 150);
+        tft.printf("%.1f",camere_actuale[2].temperatura);
+        tft.fillCircle(171, 151, 1, TFT_WHITE);
+        tft.print(" C");
+
+        tft.fillRect(145,160,20,8, TFT_DARKGREY);
+        tft.setCursor(145, 160);
+        tft.printf("%u%%",camere_actuale[2].umiditate);
+    }
+}
+//pana aici
 void saveSettingsToEEPROM() {
     EEPROM.begin(512); // Alocăm spațiu suficient
     // 🔹 Salvează temperaturile și umiditatea
@@ -57,7 +130,6 @@ void saveSettingsToEEPROM() {
         EEPROM.put(12 + i * sizeof(int), default_rh_set[i]); // Salvăm umiditatea
     }
     EEPROM.commit(); // 🔹 Confirmă modificările (esențial!)
-    Serial.println("Setările au fost salvate în EEPROM.");
 }
 
 void loadSettingsFromEEPROM() {
@@ -77,7 +149,6 @@ void loadSettingsFromEEPROM() {
         }
     }
     EEPROM.end(); // 🔹 Evităm coruperea memoriei
-    Serial.println("Setările au fost încărcate corect din EEPROM.");
 }
 
 void clearEEPROM() {
@@ -86,7 +157,6 @@ void clearEEPROM() {
         EEPROM.write(i, 0xFF); // Rescriem fiecare locație cu valoarea default (0xFF)
     }
     EEPROM.commit(); // 🔹 Confirmăm ștergerea
-    Serial.println("EEPROM a fost curățat.");
 }
 
 void reset_to_default_settings() {
@@ -98,7 +168,6 @@ void reset_to_default_settings() {
         buttonStates_Umidificare[i] = false; // Resetăm starea butonului de umidificare
     }
     IN_SETTINGS_MENU = false; // Ieșim din meniul de setări
-    Serial.println("Setările au fost resetate la valorile implicite.");
     saveSettingsToEEPROM(); // Salvăm setările implicite în EEPROM
     delay(500); // Așteptăm 1 secundă pentru a permite utilizatorului să vadă mesajul
     ESP.restart(); // Repornește ESP pentru a aplica setările implicite
@@ -377,46 +446,6 @@ void reset_date_and_time() {
     lastYear = -1;
 }
 
-void print_temperature_and_humidity(uint8_t camera,float temp,uint8_t umiditate) {
-    char tempStr[10], umidStr[10];
-    sprintf(tempStr, "%.1f", temp);
-    sprintf(umidStr, "%d", umiditate);
-    if (camera == 1) {
-        tft.fillRect(80, 5, 50, 10, TFT_BLACK);
-        tft.setTextColor(TFT_WHITE);
-        tft.setCursor(80, 5);
-        tft.print(tempStr);
-        tft.fillRect(80, 15, 50, 10, TFT_BLACK);
-        tft.setCursor(80, 15);
-        tft.print(umidStr);
-    } else if (camera == 2) {
-        tft.fillRect(240, 5, 50, 10, TFT_BLACK);
-        tft.setTextColor(TFT_WHITE);
-        tft.setCursor(240, 5);
-        tft.print(tempStr);
-        tft.fillRect(240, 15, 50, 10, TFT_BLACK);
-        tft.setCursor(240, 15);
-        tft.print(umidStr);
-    } else if (camera == 3) {
-        tft.fillRect(160, 105, 50, 10, TFT_BLACK);
-        tft.setTextColor(TFT_WHITE);
-        tft.setCursor(160, 105);
-        tft.print(tempStr);
-        tft.fillRect(160, 115, 50, 10, TFT_BLACK);
-        tft.setCursor(160, 115);
-        tft.print(umidStr);
-    }
-    else if (camera==0){
-        tft.fillRect(80, 5, 50, 10, TFT_BLACK);
-        tft.setTextColor(TFT_WHITE);
-        tft.setCursor(80, 5);
-        tft.print(tempStr);
-        tft.fillRect(80, 15, 50, 10, TFT_BLACK);
-        tft.setCursor(80, 15);
-        tft.print(umidStr);
-    }  
-}
-
 void drawUI() {
     tft.setRotation(3);
     tft.fillScreen(TFT_BLACK);
@@ -485,6 +514,7 @@ void handleTouch(uint16_t x, uint16_t y) {
             reset_date_and_time();
             drawUI();
             print_data_and_time();
+            print_temp_and_humidity();
         }
         else if (x >= 272 && x <= 320 && y >= 0 && y <= 13){
             //Serial.println("Salvare setari...");
@@ -499,8 +529,6 @@ void handleTouch(uint16_t x, uint16_t y) {
         // 🔹 Buton "Resetare setari" (dreapta jos)
         else if (x >= 240 && x <= 310 && y >= 200 && y <= 230)
         {
-            Serial.println("Ține apăsat pentru reset...");
-
             unsigned long startTime = millis();
 
             // 🔹 Așteptăm 5 secunde pentru apăsare lungă
@@ -509,7 +537,6 @@ void handleTouch(uint16_t x, uint16_t y) {
                 uint16_t xTemp, yTemp;
                 if (!tft.getTouch(&xTemp, &yTemp))
                 {
-                    Serial.println("Reset anulat.");
                     tft.fillRect(240, 200, 70, 30, TFT_WHITE);
                     tft.setTextColor(TFT_RED);
                     tft.setCursor(250, 205);
@@ -601,7 +628,6 @@ void touch_calibrate() {
     uint8_t calDataOK = 0;
 
     if (!SPIFFS.begin(true)) {
-        Serial.println("SPIFFS Mount Failed");
         return;
     }
 
@@ -614,7 +640,6 @@ void touch_calibrate() {
                 if (f.readBytes((char *)calData, 14) == 14) {
                     tft.setTouch(calData);
                     calDataOK = 1;
-                    Serial.println("Touch calibration loaded.");
                 }
                 f.close();
             }
@@ -641,7 +666,6 @@ void touch_calibrate() {
         if (f) {
             f.write((const unsigned char *)calData, 14);
             f.close();
-            Serial.println("Calibration saved.");
         }
     }
 }
@@ -651,11 +675,13 @@ void setup() {
     // 🔹 1️⃣ Conectare la Wi-Fi pentru update de timp
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
+    if (esp_now_init() != ESP_OK){
+        return;
+    }
+    esp_now_register_recv_cb(OnDataRecv); // ↩️ callback pentru recepție
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
     }
-    Serial.println("\nWi-Fi conectat!");
-
     timeClient.begin(); // 🔹 Pornim sincronizarea NTP
     tft.init();
     touch_calibrate();
@@ -667,5 +693,11 @@ void setup() {
 void loop() {
     checkTouch();
     print_data_and_time();
+    if (mesaj_nou) {
+    mesaj_nou = false;         // resetăm flag-ul
+    decodare_date_primite(); // ↩️ decodăm DOAR când e un mesaj nou
+    print_temp_and_humidity();
+    }
+
     delay(10);
 }
