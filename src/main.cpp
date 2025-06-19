@@ -50,7 +50,7 @@ CameraReadout camere_actuale[4]; // index 0 = cam1, etc.
 
 //functii de temperatura
 void trimite_mesaj_la_regulator(uint8_t cameraNR){
-    int n = snprintf(message_length, sizeof(message_length),"cam%u-%d-%d-%.1f-%u",cameraNR,buttonStates_Incalzire[cameraNR],buttonStates_Umidificare[cameraNR],default_temp_set[cameraNR],default_rh_set[cameraNR]);
+    int n = snprintf(message_length, sizeof(message_length),"cam%u-%d-%d-%.1f-%u",cameraNR,buttonStates_Incalzire[cameraNR-1],buttonStates_Umidificare[cameraNR-1],default_temp_set[cameraNR-1],default_rh_set[cameraNR-1]);
     esp_err_t err = esp_now_send(receiverMac, reinterpret_cast<const uint8_t*>(message_length),n);
     if (err != ESP_OK) Serial.printf("❌ Eroare ESP-NOW (%d)\n", err);
 }
@@ -68,7 +68,6 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   memset(ultimul_mesaj, 0, sizeof(ultimul_mesaj));
   memcpy(ultimul_mesaj, incomingData, std::min((size_t)len, sizeof(ultimul_mesaj) - 1));
   mesaj_nou = true;
-  // Poți decoda direct aici dacă vrei:
 }
 
 void print_temp_and_humidity() {
@@ -481,28 +480,34 @@ void handleTouch(uint16_t x, uint16_t y) {
         if (x >= 10 && x <= 75 && y >= 110 && y <= 130){
             buttonStates_Incalzire[0] = !buttonStates_Incalzire[0];
             draw_button_incalzire(5, 45, 150, 85, 1);
+            trimite_mesaj_la_regulator(1); // Trimite mesaj pentru camera 1
         }
         else if (x >= 84 && x <= 149 && y >= 110 && y <= 130){
             buttonStates_Umidificare[0] = !buttonStates_Umidificare[0];
             draw_button_umidificare(5, 45, 150, 85, 1);
+            trimite_mesaj_la_regulator(1); // Trimite mesaj pentru camera 1
         }
         // pentru camera 2
         else if (x >= 170 && x <= 235 && y >= 110 && y <= 130){
             buttonStates_Incalzire[1] = !buttonStates_Incalzire[1];
             draw_button_incalzire(165, 45, 150, 85, 2);
+            trimite_mesaj_la_regulator(2); // Trimite mesaj pentru camera 2
         }
         else if (x >= 244 && x <= 309 && y >= 110 && y <= 130){
             buttonStates_Umidificare[1] = !buttonStates_Umidificare[1];
             draw_button_umidificare(165, 45, 150, 85, 2);
+            trimite_mesaj_la_regulator(2); // Trimite mesaj pentru camera 2
         }
         // pentru camera 3
         else if (x >= 90 && x <= 155 && y >= 210 && y <= 230){
             buttonStates_Incalzire[2] = !buttonStates_Incalzire[2];
             draw_button_incalzire(85, 145, 150, 85, 3);
+            trimite_mesaj_la_regulator(3); // Trimite mesaj pentru camera 3
         }
         else if (x >= 164 && x <= 229 && y >= 210 && y <= 230){
             buttonStates_Umidificare[2] = !buttonStates_Umidificare[2];
             draw_button_umidificare(85, 145, 150, 85, 3);
+            trimite_mesaj_la_regulator(3); // Trimite mesaj pentru camera 3
         }
         else if (x >= 270 && x <= 320 && y >= 0 && y <= 20){
             IN_SETTINGS_MENU = true;
@@ -515,6 +520,9 @@ void handleTouch(uint16_t x, uint16_t y) {
             drawUI();
             print_data_and_time();
             print_temp_and_humidity();
+            trimite_mesaj_la_regulator(1); // Trimite mesaj pentru camera 1
+            trimite_mesaj_la_regulator(2); // Trimite mesaj pentru camera 2
+            trimite_mesaj_la_regulator(3); // Trimite mesaj pentru camera 3
         }
         else if (x >= 272 && x <= 320 && y >= 0 && y <= 13){
             //Serial.println("Salvare setari...");
@@ -523,6 +531,9 @@ void handleTouch(uint16_t x, uint16_t y) {
             tft.setTextSize(1);
             tft.setTextColor(TFT_GREEN);
             tft.print("! Setarile au fost salvate !");
+            trimite_mesaj_la_regulator(1); // Trimite mesaj pentru camera 1
+            trimite_mesaj_la_regulator(2); // Trimite mesaj pentru camera 2
+            trimite_mesaj_la_regulator(3); // Trimite mesaj pentru camera 3
             delay(1500);
             tft.fillRect(80, 165, 165, 15, TFT_DARKCYAN);
         }
@@ -555,6 +566,9 @@ void handleTouch(uint16_t x, uint16_t y) {
             }
             // 🔹 Resetăm toate setările și repornim ESP
             reset_to_default_settings();
+            trimite_mesaj_la_regulator(1); // Trimite mesaj pentru camera 1
+            trimite_mesaj_la_regulator(2); // Trimite mesaj pentru camera 2
+            trimite_mesaj_la_regulator(3); // Trimite mesaj pentru camera 3
         }
 
         for (int i = 0; i < 3; i++) {
@@ -675,10 +689,22 @@ void setup() {
     // 🔹 1️⃣ Conectare la Wi-Fi pentru update de timp
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
+    int canal_wifi = 6;
+    esp_now_peer_info_t peerInfo = {};
+    memcpy(peerInfo.peer_addr, receiverMac, 6);
+    peerInfo.channel = 0;
+    peerInfo.encrypt = false;
     if (esp_now_init() != ESP_OK){
         return;
     }
     esp_now_register_recv_cb(OnDataRecv); // ↩️ callback pentru recepție
+    if (!esp_now_is_peer_exist(receiverMac)){
+        if (esp_now_add_peer(&peerInfo) != ESP_OK){
+            Serial.println("❌ Eroare la adăugarea peer-ului");
+            return;
+        }
+    }
+
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
     }
@@ -694,10 +720,9 @@ void loop() {
     checkTouch();
     print_data_and_time();
     if (mesaj_nou) {
-    mesaj_nou = false;         // resetăm flag-ul
-    decodare_date_primite(); // ↩️ decodăm DOAR când e un mesaj nou
+    mesaj_nou = false;
+    decodare_date_primite();
     print_temp_and_humidity();
     }
-
     delay(10);
 }
