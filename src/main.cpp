@@ -132,13 +132,12 @@ void saveSettingsToEEPROM() {
 }
 
 void loadSettingsFromEEPROM() {
-    EEPROM.begin(512); // Alocăm spațiu suficient
-
+    EEPROM.begin(512); // Alocăm spațiu
     for (int i = 0; i < 3; i++) {
         EEPROM.get(i * 4, default_temp_set[i]);
         EEPROM.get(12 + i * 4, default_rh_set[i]);
 
-        // 🔹 Verificăm dacă valoarea citită este validă (pentru evitarea coruperii datelor)
+        //Verificăm dacă valoarea citită este validă (pentru evitarea coruperii datelor)
         if (default_temp_set[i] < 10.0 || default_temp_set[i] > 35.0) {
             default_temp_set[i] = 20.0; // Resetăm la valoarea default dacă este coruptă
         }
@@ -147,7 +146,7 @@ void loadSettingsFromEEPROM() {
             default_rh_set[i] = 50; // Resetăm umiditatea la default dacă este coruptă
         }
     }
-    EEPROM.end(); // 🔹 Evităm coruperea memoriei
+    EEPROM.end(); //Evităm coruperea memoriei
 }
 
 void clearEEPROM() {
@@ -168,7 +167,7 @@ void reset_to_default_settings() {
     }
     IN_SETTINGS_MENU = false; // Ieșim din meniul de setări
     saveSettingsToEEPROM(); // Salvăm setările implicite în EEPROM
-    delay(500); // Așteptăm 1 secundă pentru a permite utilizatorului să vadă mesajul
+    delay(500); // Așteptăm jumatate de secundă pentru a permite utilizatorului să vadă mesajul
     ESP.restart(); // Repornește ESP pentru a aplica setările implicite
 }
 
@@ -291,7 +290,6 @@ void drawDreptunghi(uint8_t pozX, uint8_t pozY, uint8_t lungimeL, uint8_t latime
     tft.setCursor((pozX + lungimeL) - (lungimeL / 2) - 22, pozY - 10);
     sprintf(camera, "Camera %d", nrCamera);
     tft.print(camera);
-
     tft.setCursor(pozX + 5, pozY + 5);
     tft.setTextColor(TFT_WHITE);
     tft.print("Temp-act:");
@@ -302,21 +300,18 @@ void drawDreptunghi(uint8_t pozX, uint8_t pozY, uint8_t lungimeL, uint8_t latime
     tft.print("Temp-set:");
     tft.setCursor(pozX + 5, pozY + 40);
     tft.print("Humi-set:");
-
-    // 🔹 Afișează temperatura setată
+    //Afișează temperatura setată
     tft.setTextColor(TFT_YELLOW);
     tft.setCursor(pozX + 70, pozY + 30);
-    tft.print(default_temp_set[nrCamera - 1], 1); // Afisează temperatura setată cu o zecimală
-
-    // 🔹 Afișează umiditatea setată
+    tft.print(default_temp_set[nrCamera - 1], 1);
+    //Afișează umiditatea setată
     tft.setTextColor(TFT_YELLOW);
     tft.setCursor(pozX + 70, pozY + 40);
-    tft.print(default_rh_set[nrCamera - 1]); // Afisează umiditatea setată fără zecimale
+    tft.print(default_rh_set[nrCamera - 1]);
 
     tft.setTextColor(TFT_YELLOW);
     tft.setCursor(((pozX + 5 + 65) - 65 / 2) - 27, pozY + latimel - 29);
     tft.print("Incalzire");
-
     tft.setCursor(((pozX + 5 + 65) - 65 / 2) - 27 + 68, pozY + latimel - 29);
     tft.print("Umidificare");
     draw_buttons(pozX, pozY, lungimeL, latimel, nrCamera);
@@ -329,7 +324,7 @@ void draw_meniu_setari() {
     tft.setCursor(125, 2);
     tft.print("Setari");
 
-    // 🔹 Buton "Salvare setari"
+    //Buton "Salvare setari"
     tft.setTextColor(TFT_GREEN);
     tft.setCursor(272, 3);
     tft.setTextSize(1);
@@ -337,12 +332,12 @@ void draw_meniu_setari() {
     tft.setCursor(275, 13);
     tft.print("setari");
 
-    // 🔹 Buton "Inapoi"
+    // Buton "Inapoi"
     tft.setTextColor(TFT_YELLOW);
     tft.setCursor(5, 5);
     tft.print("Inapoi");
 
-    // 🔹 Buton de resetare la setari initiale
+    //Buton de resetare la setari initiale
     tft.fillRect(240, 200, 70, 30, TFT_WHITE);
     tft.setTextColor(TFT_RED);
     tft.setCursor(250, 205);
@@ -351,7 +346,7 @@ void draw_meniu_setari() {
     tft.print("setari");
 
 
-    // 🔹 Afișare temperaturi și umiditate pentru fiecare cameră + butoane de modificare
+    // Afișare temperaturi și umiditate pentru fiecare cameră + butoane de modificare
     for (int i = 0; i < 3; i++) {
         int yOffset = 35 + i * 45; // Ajustare poziție verticală
 
