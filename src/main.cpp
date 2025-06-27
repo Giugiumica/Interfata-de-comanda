@@ -50,7 +50,9 @@ CameraReadout camere_actuale[4]; // index 0 = cam1, etc.
 
 //functii de temperatura
 void trimite_mesaj_la_regulator(uint8_t cameraNR){
-    int n = snprintf(message_length, sizeof(message_length),"cam%u-%d-%d-%.1f-%u",cameraNR,buttonStates_Incalzire[cameraNR-1],buttonStates_Umidificare[cameraNR-1],default_temp_set[cameraNR-1],default_rh_set[cameraNR-1]);
+    int n = snprintf(message_length, sizeof(message_length),"cam%u-%d-%d-%.1f-%u"
+    ,cameraNR,buttonStates_Incalzire[cameraNR-1],buttonStates_Umidificare[cameraNR-1]
+    ,default_temp_set[cameraNR-1],default_rh_set[cameraNR-1]);
     esp_err_t err = esp_now_send(receiverMac, reinterpret_cast<const uint8_t*>(message_length),n);
     if (err != ESP_OK) Serial.printf("❌ Eroare ESP-NOW (%d)\n", err);
 }
@@ -681,7 +683,7 @@ void touch_calibrate() {
 
 void setup() {
     Serial.begin(115200);
-    // 🔹 1️⃣ Conectare la Wi-Fi pentru update de timp
+    //Conectare la Wi-Fi pentru update de timp
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
     int canal_wifi = 6;
@@ -692,7 +694,7 @@ void setup() {
     if (esp_now_init() != ESP_OK){
         return;
     }
-    esp_now_register_recv_cb(OnDataRecv); // ↩️ callback pentru recepție
+    esp_now_register_recv_cb(OnDataRecv); //callback pentru receptia mesajelor
     if (!esp_now_is_peer_exist(receiverMac)){
         if (esp_now_add_peer(&peerInfo) != ESP_OK){
             Serial.println("❌ Eroare la adăugarea peer-ului");
