@@ -30,8 +30,8 @@ int lastMonth = -1;
 int lastYear = -1;
 unsigned long lastTouchTime = 0;
 const unsigned long debounceInterval = 200; //ms
-const char *ssid = "FBI5G";
-const char *password = "3.14159265";
+const char *ssid = "iPhone - Alexandru";
+const char *password = "12345679";
 bool buttonStates_Incalzire[] = {false, false, false};
 bool buttonStates_Umidificare[] = {false, false, false};
 
